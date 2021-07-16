@@ -492,9 +492,14 @@ ipset_parse_proto(struct ipset_session *session,
 	assert(opt == IPSET_OPT_PROTO);
 	assert(str);
 
-	if (string_to_u8(session, str, &protonum, IPSET_WARNING) == 0)
+	if (string_to_u8(session, str, &protonum, IPSET_WARNING) == 0) {
+		/* Optimise by not calling getprotobynumber() for known protocols */
+		if ((protonum == IPPROTO_TCP) ||
+		    (protonum == IPPROTO_UDP) ||
+		    (protonum == IPPROTO_ICMP))
+			return ipset_session_data_set(session, opt, &protonum);
 		protoent = getprotobynumber(protonum);
-	else {
+	} else {
 		/* No error, so reset false error messages */
 		ipset_session_report_reset(session);
 		protoent = getprotobyname(strcasecmp(str, "icmpv6") == 0
